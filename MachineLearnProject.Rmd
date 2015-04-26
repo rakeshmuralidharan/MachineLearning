@@ -1,0 +1,89 @@
+####Application of Machine Learning algorithms to predict barbell lifts into preset categories.
+
+#####Background:
+
+#####Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+#####Summary:
+
+#####In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. We then gather those data and try to use Random Forest classification model to predict whether they did the barbell lifts correctly or incorrectly into the five classifications - A,B,C,D or E. 
+
+#####More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+#####First we read the training and test datasets from the project folder. Data were downloaded from the following website(s) provided on the project page...
+
+#####Training data - https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv.
+
+#####Test data - https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+```{r}
+trainData = read.csv("C:/Users/juliuscezar/Desktop/Coursera/MachineLearn/Training.csv", header=TRUE)
+
+testData = read.csv("C:/Users/juliuscezar/Desktop/Coursera/MachineLearn/Testing.csv", header=TRUE)
+```
+
+#####Rows and Variables in training data...
+```{r}
+dim(trainData)
+```
+
+#####Rows and variables in testing data...
+```{r}
+dim(testData)
+```
+
+
+#####Data Preparation: 
+#####Next we clean up the data...There are several variables that have missing values (NA) hence will not be significant contributors to the predictive power of the model. Hence we remove them from the training and test datasets. Also we are more intrested in variables that measure the motion of the dumbbell for predicting the five types of motion with class A being the proper way (classe variable). Hence we select the motion variables containing "gyros, accel, magnet, total_accel, roll, pitch, yaw" for the 4 locations - belt, arm, dumbbell and forearm.
+
+#####Source:  http://groupware.les.inf.puc-rio.br/har
+
+
+```{r}
+trainSub = trainData[,c(8:11, 37:49, 60:68, 84:86, 102, 113:124, 140, 151:160)]
+testSub = testData[,c(8:11, 37:49, 60:68, 84:86, 102, 113:124, 140, 151:160)]
+dim(trainSub)
+dim(testSub)
+```
+
+#####Model selection and crossvalidation: 
+#####We are going to use the Random Forest predictor for estimating the class variables using 52 predictors available to us. The reasons for using Random Forest prediction algorithm are as follows...
+#####1) We have a large collection of predictor variables (52) and interactions between them are not known. Random forest seems to work fine with the said constraints.
+#####2) Random Forest have cross validation in-built in them which gives an unbiased estimate of the predicted class variable.
+#####3) Variable importance can be calculated which can be used to prune/trim the trees and optimize the algorithm. Also the algorithm works well with continuous as well as categorical variables.
+#####These are some of the benefits, now lets create the model and predict the out of sample error.
+
+#####We are going to use the Random Forest in the Caret package with 3 Fold cross validation. However, first we will take a subsample of the training data to reduce processing time...
+
+
+```{r}
+library(caret)
+set.seed(1234)
+inTrain = createDataPartition(y=trainSub$classe, p=0.3, list=FALSE)
+training = trainSub[inTrain,]
+dim(training)
+modFit = train(classe~.,data=training, method="rf", trControl=trainControl(method="cv",number=3), prox=TRUE, allowParallel=TRUE)
+
+print(modFit)
+print(modFit$finalModel)
+```
+
+#####Data from the model shows that the model is pretty accurate with about 98% accuracy. 
+
+#####Estimated out of sample error is - 1.95%
+
+#####Now lets try to predict the test data set provided on the project page to see which classes they belong to...
+
+```{r}
+pred = predict(modFit,testSub)
+print(pred)
+```
+
+#####For further research, we can use the variable importance to identify the top variables that contribute to the prediction. This can be used to optimize the model to reduce overfitting. We will not be pruning this model further since we have a reasonable accuracy with us. 
+
+#####However, I just wanted to highlight this for information purposes. Following are the use of varImp() function in caret package...
+
+```{r}
+ImpVariable = varImp(modFit)
+plot(ImpVariable, main= "Variable importance of top 25 variables", top=25)
+```
